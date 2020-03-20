@@ -38,6 +38,8 @@ def quantEncounter(form, i, startind, globform, flag):
     print('in quantifiers')
     form[i] = 'pq'  # parsed quantifier
     print(form)
+    print('in encounterquant, form[i+1]:')
+    print(form[i+1])
     if form[i + 1] in variables:
         form[i + 1] = 'pv'  # parsed variable
         print('in variables')
@@ -51,20 +53,32 @@ def quantEncounter(form, i, startind, globform, flag):
                 print("Given formula is invalid. Error in brackets")
                 return 0, globform, flag
             else:
-                result = parse(newForm, startind + i + 3, globform, flag)
+                print('newForm in encounterQuant')
+                print(newForm)
+                result, globform = parse(newForm, startind + i + 3, globform, flag)
+                print('just returned parsing in encounterquant and the result is:')
+                print(result)
+                print('and globform is: ')
+                print(globform)
                 if result == 0:
                     print("Given formula is invalid.")
                     return 0, globform, flag
                 else:
                     count = i + 3
+                    print('form before editing:')
+                    print(form)
                     for item in result:
                         form[count] = item
                         count += 1
                     form[i + 1] = 'pv'  # set variable to pv = parsed variable
                     form[i] = 'pq'  # parsed quantifier
-            for j in range(startind + i, startind + i + 2 + len(newForm) + 2):  # +2 so includes brackets
-                globform[j] = flag
-                flag += 1
+                    print('new form after editing')
+                    print(form)
+                    for j in range(startind + i, startind + i + 2 + len(newForm) + 2):  # +2 so includes brackets
+                        globform[j] = flag
+                    flag += 1
+                    print('form after for loop')
+                    print(form)
 
         elif form[i + 2] == '\\neg':
             form[i + 2] = 'pc'  # parsed connective
@@ -83,7 +97,7 @@ def quantEncounter(form, i, startind, globform, flag):
                     print('Given formula is invalid. Error in brackets.')
                     return 0, globform, flag
                 else:
-                    result = parse(newForm, startind + i + j + 4, globform, flag)
+                    result, globform = parse(newForm, startind + i + j + 4, globform, flag)
                     if result == 0:
                         print("Formula is invalid")
                         return 0, globform, flag
@@ -94,11 +108,11 @@ def quantEncounter(form, i, startind, globform, flag):
                             count += 1
                 for k in range(startind + i, startind + i + j + 3 + len(newForm) + 2):
                     globform[k] = flag
-                    flag += 1
+                flag += 1
 
             else:
                 # the item after the neg should be a formula
-                result = parse([form[j + i + 3]], startind + i + j + 3, globform, flag)
+                result, globform = parse([form[j + i + 3]], startind + i + j + 3, globform, flag)
                 if result == 0:
                     print('Given formula is invalid')
                     return 0, globform, flag
@@ -106,12 +120,12 @@ def quantEncounter(form, i, startind, globform, flag):
                     form[j + i + 3] = result[0]
                 for k in range(startind + i, startind + i + j + 4):
                     globform[k] = flag
-                    flag += 1
+                flag += 1
 
         else:
             # return next item to check its a formula
             # in next iteration make sure its not a constant or variable
-            result = parse([form[i + 2]], startind + i + 2, globform, flag)
+            result, globform = parse([form[i + 2]], startind + i + 2, globform, flag)
             if result == 0:
                 print('Invalid formula. Value after quantifier ' + form[i] + ' is not a formula.')
                 return 0, globform, flag
@@ -119,13 +133,14 @@ def quantEncounter(form, i, startind, globform, flag):
                 form[i + 2] = result[0]
             for k in range(startind + i, startind + i + 3):
                 globform[k] = flag
-                flag += 1
+            flag += 1
 
     else:
         # item after a quantifier isn't a variable
         print("Given formula is invalid")
         return 0, globform, flag
-
+    print('form to be returned: ')
+    print(form)
     return form, globform, flag
 
 
@@ -197,7 +212,7 @@ def parse(form, startind, globform, flag):
                             count += 1
                         for j in range(startind+i, startind+i+len(newForm)+2 ): #+2 so includes brackets
                             globform[j] = flag
-                            flag +=1
+                        flag +=1
 
 
 
@@ -218,11 +233,13 @@ def parse(form, startind, globform, flag):
                 globform[startind+i] = flag
                 flag += 1
 
-        elif (form[i] in constants or form[i] in variables) and len(''.join(form)) == 3:
-            if (form[i+1] in equality) and (form[i+2] in variables or form[i+2] in constants):
-                form = ['vfe'] * 3 #valid formula equality
-                for k in range(startind+i-1, startind+i+4):
-                    globform[k] = flag
+        elif len(form[i]) == 2 and form[i][0] == '(':
+            if (form[i][1] in constants or form[i][1] in variables) and (form[i+1] in equality) and (form[i+2][0] in variables or form[i+2][0] in constants):
+                    form[i] = 'vfe' #valid formula equality
+                    form[i+1] = 'vfe'
+                    form[i+2] = 'vfe'
+                    for k in range(startind+i, startind+i+3):
+                        globform[k] = flag
                     flag+=1
             else:
                 print('Given formula is invalid. Error in equality.')
@@ -260,7 +277,7 @@ def parse(form, startind, globform, flag):
                             count += 1
                         for j in range(startind+i+1, startind+i+1+len(newForm)+2):
                             globform[k] = flag
-                            flag +=1
+                        flag +=1
 
             #if there is a neg after the connective
 
@@ -294,7 +311,7 @@ def parse(form, startind, globform, flag):
                                 count += 1
                             for k in range(startind+i+1, startind+i+j+2+len(newForm)+2): # i+j+2 = (
                                 globform[k] = flag
-                                flag +=1
+                            flag +=1
 
                 else:
                     #the item after the neg should be a formula
@@ -306,9 +323,9 @@ def parse(form, startind, globform, flag):
                         form[j + i + 2] = result[0]
                         for k in range(startind+i+1, startind+j+i+2):
                             globform[k] = flag
-                            flag+=1
+                        flag+=1
             elif form[i+1] in quantifiers:
-                form, globform, flag = quantEncounter(form, i, startind, globform, flag)
+                form, globform, flag = quantEncounter(form, i+1, startind, globform, flag)
                 if form == 0:
                     return 0
 
@@ -408,10 +425,10 @@ formula.pop(0)
 print(formula)
 
 
-globform = formula
+finalform = formula
 flag = 0
 
-result, finalform = parse(formula, 0, globform, flag)
+result, finalform = parse(formula, 0, finalform, flag)
 if result == 0:
     print('result = 0. invalid formula')
 else:
