@@ -5,29 +5,21 @@ def graphparse(graphformula):
     graphformula.insert(0, '(')
     graphformula.append(')')
 
-    print(graphformula)
     stack = []
     subGraph = 0
 
     # Assign every element in the formula a node.
-    dot = Digraph(comment='First Order ADT')
-    #
-    #     dot.render('round-table.gv', view=True)
+    dot = Digraph(comment='FO')
 
-    # List of connectives for the different subgraphs.
     interConnectives = []
-
+    #predicates
     for index in range(0, len(graphformula)):
-        # Checks predicates
         isPred = False
         for predicate in predDic:
             if predicate in graphformula[index]:
                 stack.append(graphformula[index])
                 isPred = True
         if not isPred:
-            # Adding rules for equality splitting the () sign. (x = y)
-            print('graphformula')
-            print(graphformula)
             if graphformula[index][0] == '(' and graphformula[index+2][-1] == ')':
                 stack.append('(')
                 stack.append(graphformula[index][1:])
@@ -38,102 +30,94 @@ def graphparse(graphformula):
                 stack.append(graphformula[index])
 
         if stack[-1] is ')':
-            subFormulae = []
+            subf = []
             while stack[-1] is not "(":
                 toAdd = stack.pop()
                 if toAdd != '':
-                    subFormulae.append(toAdd)
-            subFormulae.append(stack.pop())
-            subFormulae.reverse()
+                    subf.append(toAdd)
+            subf.append(stack.pop())
+            subf.reverse()
 
-            # where the magic happens with the sub formulae
-            print(subGraph, subFormulae)
-
-            # Find connectives adn equality but not Neg
             middle = []
-            for i, j in enumerate(subFormulae):
+            for i, j in enumerate(subf):
                 if j in connectives and j not in ['\\neg', 'NOT']:
                     middle.append(i)
                 if j == '\\neg':
-                    subFormulae[i] = 'neg'
+                    subf[i] = 'neg'
                 if j in equality:
                     middle.append(i)
 
-            # If no connectives must be a quantifier.
+            # quantifier
             if not middle:
                 # Create last nodes
-                for element in range(1, len(subFormulae)-2):
+                for element in range(1, len(subf)-2):
                     name = 'A{0}'.format(element)
-                    dot.node(name, subFormulae[element])
-                    print(name, subFormulae[element])
+                    dot.node(name, subf[element])
                 # link last nodes
-                for element in range(1, len(subFormulae)-3):
-                    print(element, element+1)
+                for element in range(1, len(subf)-3):
                     dot.edge('A{0}'.format(element), 'A{0}'.format(element+1))
-                dot.edge('A{0}'.format(element+1), '{0}0'.format(subFormulae[element+2][1]))
-            # Creates the Sub Tree
+                dot.edge('A{0}'.format(element+1), '{0}0'.format(subf[element+2][1]))
+            # subtree creation
             else:
                 if len(middle) == 1:
                     middle = middle[0]
-                    # The connective is the root.
+                    # root
                     middleName = '{0}{1}'.format(subGraph, 0)
-                    dot.node(middleName, subFormulae[middle])
+                    dot.node(middleName, subf[middle])
 
                     # Create Nodes:
                     LHSFlag, LHSFirstFlag = 0, 0
                     prevName = middleName
                     for LHS in range(1, middle):
                         name = '{0}L{1}'.format(subGraph, LHS)
-                        if subFormulae[LHS][0] == '#':
-                            interConnectives.append([prevName, '{0}0'.format(subFormulae[LHS][1])])
+                        if subf[LHS][0] == '#':
+                            interConnectives.append([prevName, '{0}0'.format(subf[LHS][1])])
                             LHSFlag = 1
 
-                            # Checks if it is the first one.
                             if LHS == 1:
                                 LHSFirstFlag = 1
                         else:
-                            dot.node(name, subFormulae[LHS])
+                            dot.node(name, subf[LHS])
                             prevName = name
 
                     RHSFlag, RHSFirstFlag = 0, 0
                     prevName = middleName
-                    for RHS in range(middle+1, len(subFormulae)-1):
+                    for RHS in range(middle+1, len(subf)-1):
                         name = '{0}R{1}'.format(subGraph, RHS)
-                        if subFormulae[RHS][0] == '#':
-                            interConnectives.append([prevName, '{0}0'.format(subFormulae[RHS][1])])
+                        if subf[RHS][0] == '#':
+                            interConnectives.append([prevName, '{0}0'.format(subf[RHS][1])])
                             RHSFlag = 1
 
-                            # Checks if it is the first one.
                             if RHS == middle+1:
                                 RHSFirstFlag = 1
                         else:
-                            dot.node(name, subFormulae[RHS])
+                            dot.node(name, subf[RHS])
                             prevName = name
 
                     # To middle node
-                    lhsMain = '{0}L{1}'.format(subGraph, 1)
-                    rhsMain = '{0}R{1}'.format(subGraph, middle + 1)
+                    theleft = '{0}L{1}'.format(subGraph, 1)
+                    theright = '{0}R{1}'.format(subGraph, middle + 1)
                     if LHSFirstFlag != 1:
-                        dot.edge(middleName, lhsMain)
+                        dot.edge(middleName, theleft)
                     if RHSFirstFlag != 1:
-                        dot.edge(middleName, rhsMain)
+                        dot.edge(middleName, theright)
 
                     # LHS
-                    LHSRange = middle
+                    leftrange = middle
                     if LHSFlag == 1:
-                        LHSRange -= 1
-                    prevName = lhsMain
-                    for LHS in range(2, LHSRange, 1):
+                        leftrange -= 1
+                    prevName = theleft
+                    for LHS in range(2, leftrange, 1):
                         currentName = '{0}L{1}'.format(subGraph, LHS)
                         dot.edge(prevName, currentName)
                         prevName = currentName
 
                     # RHS
-                    RHSRange = len(subFormulae)-1
+                    rightrange = len(subf)-1
                     if RHSFlag == 1:
-                        RHSRange -= 1
-                    prevName = rhsMain
-                    for RHS in range(middle+2, RHSRange, 1):
+                        rightrange -= 1
+                    prevName = theright
+                    for RHS in range(middle+2, rightrange, 1):
                         currentName = '{0}R{1}'.format(subGraph, RHS)
                         dot.edge(prevName, currentName)
                         prevName = currentName
@@ -145,7 +129,7 @@ def graphparse(graphformula):
     for x in interConnectives:
         dot.edge(x[0], x[1])
 
-    dot.render('ADT.gv', view=True)
+    dot.render('fograph', view=True)
 
 
 def recordLog(status, message):
@@ -193,52 +177,32 @@ def collectForm(form, i):
             return 0
 
 def quantEncounter(form, i, startind, globform, flag):
-    print('in quantifiers')
+    global errorMessage
     form[i] = 'pq'  # parsed quantifier
-    print(form)
-    print('in encounterquant, form[i+1]:')
-    print(form[i+1])
     if form[i + 1] in variables:
         form[i + 1] = 'pv'  # parsed variable
-        print('in variables')
-        print(form)
         if form[i + 2] == '(':
             newForm = collectForm(form, i + 2)
-            print('newform is ' + str(newForm))
             # if brackets were found surrounding a new formula, call parse again
             if newForm == 0:
                 # Invalid brackets. Formula is not properly encompassed.
-                print("Given formula is invalid. Error in brackets")
                 return 0, globform, flag
             else:
-                print('newForm in encounterQuant')
-                print(newForm)
                 result, globform = parse(newForm, startind + i + 3, globform, flag)
-                print('just returned parsing in encounterquant and the result is:')
-                print(result)
-                print('and globform is: ')
-                print(globform)
                 if result == 0:
-                    print("Given formula is invalid.")
                     return 0, globform, flag
                 else:
                     count = i + 3
-                    print('form before editing:')
-                    print(form)
                     for item in result:
                         form[count] = item
                         count += 1
                     form[i + 1] = 'pv'  # set variable to pv = parsed variable
                     form[i] = 'pq'  # parsed quantifier
-                    print('new form after editing')
-                    print(form)
                     formcopy = form.copy()
                     for j in range(startind + i, startind + i + 2 + len(newForm) + 2):  # +2 so includes brackets
                         globform[j] = flag
                     flag += 1
                     form = formcopy.copy()
-                    print('form after for loop')
-                    print(form)
 
         elif form[i + 2] == '\\neg':
             form[i + 2] = 'pn'  # parsed connective
@@ -248,13 +212,17 @@ def quantEncounter(form, i, startind, globform, flag):
                 form[j + i + 3] = 'pn'  # parsed connective
                 j += 1
             if (j + i + 3) == len(form):
-                print("Invalid formula. Error with negs.")
+                print("Invalid formula. Error with \\neg.")
+                if errorMessage == "":
+                    errorMessage = "Error with \\neg connective."
                 return 0, globform, flag
             # if there is a bracket after the last neg
             if form[j + i + 3] == '(':
                 newForm = collectForm(form, j + i + 3)
                 if newForm == 0:
                     print('Given formula is invalid. Error in brackets.')
+                    if errorMessage == "":
+                        errorMessage = "Invalid brackets"
                     return 0, globform, flag
                 else:
                     result, globform = parse(newForm, startind + i + j + 4, globform, flag)
@@ -288,6 +256,8 @@ def quantEncounter(form, i, startind, globform, flag):
             result, globform = parse([form[i + 2]], startind + i + 2, globform, flag)
             if result == 0:
                 print('Invalid formula. Value after quantifier ' + form[i] + ' is not a formula.')
+                if errorMessage == "":
+                    errorMessage = 'Value after quantifier ' + form[i] + ' is not a formula.'
                 return 0, globform, flag
             else:
                 form[i + 2] = result[0]
@@ -297,10 +267,11 @@ def quantEncounter(form, i, startind, globform, flag):
 
     else:
         # item after a quantifier isn't a variable
-        print("Given formula is invalid")
+        print("Given formula is invalid. Value after quantifier should be a variable.")
+        if errorMessage == "":
+            errorMessage = "Value after " + form[i] + " is not a variable."
+
         return 0, globform, flag
-    print('form to be returned: ')
-    print(form)
     return form, globform, flag
 
 
@@ -309,12 +280,6 @@ errorMessage = ""
 def parse(form, startind, globform, flag):
     global errorMessage
     for i in range(len(form)):
-        print('i is ' + str(i))
-        print('form:')
-        print(form)
-        print('form[i]:')
-        print(form[i])
-
         if form[i] in equality:
             print("Equality symbol out of place.")
             if errorMessage == "":
@@ -332,35 +297,25 @@ def parse(form, startind, globform, flag):
             return 0, 0
         #if a formula of length one is returned, it must be a predicate
         elif len(form) == 1:
-            print('len form is 1')
             predVal = form[0].replace(',', '')
-            print('predVal ' + predVal)
             predVal = predVal.replace(' ', '')
-            print('predVal ' + predVal)
             openbrac = predVal.index('(')
-            print('openbrac ' + str(openbrac))
             closedbrac = predVal.index(')')
-            print('closedbrac ' + str(closedbrac))
             numVar = closedbrac - openbrac - 1
-            print('numVar ' + str(numVar))
             predLet = predVal[:openbrac]
             if predVal[:openbrac] not in predLetters:
-                print('not in predletters')
                 if errorMessage == "":
-                    errorMessage = str(form[i]) + " is not a defined formula"
+                    errorMessage = form[i] + " is not a defined formula"
                 print("Given formula is invalid. Form[i] is not a defined formula.")
                 return 0, 0
             #Formula of length one is a predicate
             else:
-                print('in predletters')
                 found = False
                 for item in predicates:
                     #Finding letter in predicates that corresponds to given formula
                     if item == predLet + '[' + str(numVar) + ']':
                         found = True
-                        print("Correct number of variables in predicate")
                         for j in range(openbrac+1, closedbrac):
-                            print('variable: ' + str(predVal[j]))
                             if predVal[j] not in variables:
                                 print("Given formula is invalid. Variable in predicate is invalid.")
                                 if errorMessage == "":
@@ -368,7 +323,6 @@ def parse(form, startind, globform, flag):
                                                                                       "predicate " + str(form[0])
                                 return 0, 0
                         #Predicate is correct
-                        print('pred correct')
                         form = ['vf']
                         globform[startind] = flag
                         flag += 1
@@ -380,7 +334,6 @@ def parse(form, startind, globform, flag):
                     return 0, 0
 
         elif form[i] == '(':
-            print(form[i])
             if len(form) > 1:
                 if (form[i+1] != 'vf') and (form[i+1] != 'vfe'):
                     newForm = collectForm(form, i)
@@ -534,8 +487,6 @@ def parse(form, startind, globform, flag):
 
             elif form[i+1] == '\\neg':
                 form[i+1] = 'pn'
-                print('form in connectives part neg')
-                print(form)
                 j= 0
                 #in case there are more than one neg after another
                 try:
@@ -619,13 +570,10 @@ with open(givenFile, "r") as inpFile:
         currentLineArray = aLine.split()
         if currentLineArray[0] == 'variables:':
             variables = currentLineArray[1:]
-            print(variables)
         elif currentLineArray[0] == 'constants:':
             constants = currentLineArray[1:]
-            print(constants)
         elif currentLineArray[0] == 'predicates:':
             predicates = currentLineArray[1:]
-            print(predicates)
             predDic = []
             predSize = {}
             for item in currentLineArray[1:]:
@@ -640,24 +588,21 @@ with open(givenFile, "r") as inpFile:
             predSize[name] = size
         elif currentLineArray[0] == 'equality:':
             equality = currentLineArray[1:]
-            print(equality)
         elif currentLineArray[0] == 'connectives:':
             connectives = currentLineArray[1:]
-            print(connectives)
         elif currentLineArray[0] == 'quantifiers:':
             quantifiers = currentLineArray[1:]
-            print(quantifiers)
         elif currentLineArray[0] == 'formula:':
             formula = currentLineArray[1:]
         else:
             formula += currentLineArray
-    print(formula)
 
 
 #Printing out grammar of language defined
 
 terminal = variables + constants + predicates
 nonterminal = ['S', 'D', 'V', 'A', 'E', 'F', 'G']
+print("The grammar generated from the input file is as follows:")
 if "\\neg" in connectives:
     print('S -> (S) | SDS | NS | A | E | \\neg S | \epsilon')
 else:
@@ -677,7 +622,6 @@ predLetters = []
 for i in range(len(predicates)):
     predVal = predicates[i].replace(',', '')
     predVal = predVal.replace(' ', '')
-    print(predVal)
     openbrac = predVal.index('[')
     closedbrac = predVal.index(']')
     numVar = int(predVal[openbrac+1:closedbrac])
@@ -698,6 +642,7 @@ constPrint = ' | '.join(formattedConst)
 print('C -> ' + constPrint)
 if (constants != []) and (variables != []):
     print('F -> V | C')
+print('\n')
 
 #Breaking up formula into list
 
@@ -750,13 +695,13 @@ if result != 0:
                 break
 
 if result == 0:
-    print('Your formula is invalid. See logfile.txt for more info.')
+    print('Your formula is invalid. See log.txt for more info.')
     if errorMessage == "":
         errorMessage = "Invalid formula"
     recordLog("Failure", errorMessage)
 else:
     recordLog("Success", "None")
-    print("Your formula was successfully validated.")
+    print("Your formula was successfully validated. See log.txt for additional information.")
     print('Your tokenised formula is:')
     print(result)
 
