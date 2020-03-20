@@ -1,3 +1,13 @@
+import datetime
+
+def recordLog(status, message):
+    global inpFile
+    filename = inpFile.name
+    dt = str(datetime.datetime.now())
+    logfile = open("log.txt", "a")
+    logfile.write(f"{dt[:19]}\t Input: {filename}\t Status: {status}\t Further info: {message}\n")
+    logfile.close()
+
 def collectForm(form, i):
     endBrac = False
     if form[i] == '(':
@@ -83,11 +93,11 @@ def quantEncounter(form, i, startind, globform, flag):
                     print(form)
 
         elif form[i + 2] == '\\neg':
-            form[i + 2] = 'pc'  # parsed connective
+            form[i + 2] = 'pn'  # parsed connective
             j = 0
             # in case there are more than one neg after another
             while form[j + i + 3] == '\\neg' and (j + i + 3) < len(form) + 1:
-                form[j + i + 3] = 'pc'  # parsed connective
+                form[j + i + 3] = 'pn'  # parsed connective
                 j += 1
             if (j + i + 3) == len(form):
                 print("Invalid formula. Error with negs.")
@@ -147,9 +157,9 @@ def quantEncounter(form, i, startind, globform, flag):
 
 
 
-
+errorMessage = ""
 def parse(form, startind, globform, flag):
-
+    global errorMessage
     for i in range(len(form)):
         print('i is ' + str(i))
         print('form:')
@@ -158,18 +168,27 @@ def parse(form, startind, globform, flag):
         print(form[i])
 
         if form[i] in equality:
-            print("Given formula is invalid. Equality found rogue.")
+            print("Equality symbol out of place.")
+            if errorMessage == "":
+                errorMessage = "Equality symbol out of place"
             return 0, 0
         elif form[i] in constants:
             print("Given formula is invalid. Constant found rogue.")
+            if errorMessage == "":
+                errorMessage = "Constant symbol out of place"
             return 0, 0
         elif form[i] in variables:
             print("Given formula is invalid. Variable found rogue.")
+            if errorMessage == "":
+                errorMessage = "Variable symbol out of place"
             return 0, 0
         #if a formula of length one is returned, it must be a predicate
         elif len(form) == 1:
+            print('len form is 1')
             predVal = form[0].replace(',', '')
             if predVal[0] not in predLetters:
+                if errorMessage == "":
+                    errorMessage = str(form[i]) + " is not a defined formula"
                 print("Given formula is invalid. Form[i] is not a defined formula.")
                 return 0, 0
             #Formula of length one is a predicate
@@ -181,13 +200,22 @@ def parse(form, startind, globform, flag):
                     if item[0] == predVal[0]:
                         if int(item[2]) != int(numVar):
                             print("Given formula is invalid. Number of variables in predicate is invalid.")
+                            if errorMessage == "":
+                                errorMessage = "Invalid number of variables in predicate " + str(form[i])
                             return 0, 0
                         else:
                             print("Correct number of variables in predicate")
-                            for j in range(2, len(form)):
-                                if form[j] != ',':
-                                    if form[j] not in variables:
+                            print(form)
+                            print(len(form[0]))
+                            for j in range(2, len(form[0])-1):
+                                print('in for loop')
+                                print(form[0][j])
+                                if form[0][j] != ',':
+                                    print('variable: ' + str(form[0][j]))
+                                    if form[0][j] not in variables:
                                         print("Given formula is invalid. Variable in predicate is invalid.")
+                                        if errorMessage == "":
+                                            errorMessage = "Variable " + str(form[0][j]) + " is not a valid variable in predicate " + str(form[0])
                                         return 0, 0
                             #Predicate is correct
                             form = ['vf']
@@ -200,13 +228,13 @@ def parse(form, startind, globform, flag):
                 if (form[i+1] != 'vf') and (form[i+1] != 'vfe'):
                     newForm = collectForm(form, i)
                     if newForm == 0:
+                        if errorMessage == "":
+                            errorMessage = "Invalid brackets"
                         print("Given formula is invalid. Error in brackets.")
                         return 0, 0
                     else:
                         result, globform = parse(newForm, startind+i+1, globform, flag)
                         if result == 0:
-                            print(newForm)
-                            print( 'is an invalid formula.')
                             return 0,0
                         else:
                             count = i + 1
@@ -218,6 +246,8 @@ def parse(form, startind, globform, flag):
                             flag +=1
             else:
                 print('( is not a formula.')
+                if errorMessage == "":
+                    errorMessage = "Rogue '(' exists where a formula should"
                 return 0, 0
 
 
@@ -230,6 +260,8 @@ def parse(form, startind, globform, flag):
         elif form[i][0] in predLetters:
             result, globform = parse([form[i]], startind+i, globform, flag)
             if result == 0:
+                if errorMessage == "":
+                    errorMessage = "Predicate " + form[i] + " is invalid"
                 print("Predicate " + form[i] + " returned as incorrect.")
                 return 0, 0
             else:
@@ -248,9 +280,14 @@ def parse(form, startind, globform, flag):
                         flag+=1
                 else:
                     print('Given formula is invalid. Error in equality, ' + str(form[i]) + str(form[i+2]) + str(form[i+3]))
+                    if errorMessage == "":
+                        errorMessage = "Error in equality, " + str(form[i]) + str(form[i+2]) + str(form[i+3])
                     return 0, 0
             except:
+                if errorMessage == "":
+                    errorMessage = "Equality expected after " + form[i] + " but not received"
                 print("Equality expected after " + form[i] + " but not received")
+                return 0, 0
 
         elif form[i] in connectives:
             # the item before the connective (already parsed) should be a formula
@@ -263,25 +300,39 @@ def parse(form, startind, globform, flag):
                             j += 1
                         if (form[i - 1 - j] != 'vf') and (form[i - 1 - j] != 'vfe'):
                             print('Given formula is invalid. Item before connective ' + form[i] + ' is not a formula.')
+                            if errorMessage == "":
+                                errorMessage = 'Item before connective ' + form[i] + ' is not a formula.'
                             return 0, 0
                     elif form[i-1] != 'vf' and form[i-1] != 'vfe':
+                        if errorMessage == "":
+                            errorMessage = 'Item before connective ' + form[i] + ' is not a formula.'
                         print('Given formula is invalid. Item before connective ' + form[i] + ' is not a formula.')
                         return 0, 0
                 except:
+                    if errorMessage == "":
+                        errorMessage = 'Connective ' + form[i] + ' cannot start a formula'
                     print('Connective ' + form[i] + ' cannot start a formula.')
                     return 0, 0
-            form[i] = 'pc' #parsed connective
+            conn = form[i]
+            if conn == "\\neg":
+                form[i] = 'pn' #parsed connective
+            else:
+                form[i] = 'pc'
             #if there is a bracket after the connective, it should contain a formula
             try:
                 testVal = form[i+1]
             except:
-                print("Given formula is invalid. No value after connective " + form[i])
+                print("Given formula is invalid. No value after connective " + conn)
+                if errorMessage == "":
+                    errorMessage = 'No value after connective ' + conn
                 return 0, 0
 
             if form[i+1] == '(':
                 newForm = collectForm(form, i+1)
                 if newForm == 0:
                     print('Given formula is invalid. Error in brackets.')
+                    if errorMessage == "":
+                        errorMessage = 'Item before connective ' + form[i] + ' is not a formula.'
                     return 0, 0
                 else:
                     result, globform = parse(newForm, startind+i+2, globform, flag)
@@ -310,16 +361,21 @@ def parse(form, startind, globform, flag):
                     else:
                         print('Given formula is invalid. Error in equality, ' + str(form[i]) + str(form[i + 2]) + str(
                             form[i + 3]))
+                        if errorMessage == "":
+                            errorMessage = 'Error in equality, ' + str(form[i]) + str(form[i + 2]) + str(form[i + 3])
                         return 0, 0
                 except:
                     print("Equality expected after " + form[i] + " but not received")
+                    if errorMessage == "":
+                        errorMessage = 'Equality expected after ' + form[i] + ' but not received'
+                    return 0, 0
 
 
             #if there is a neg after the connective
 
 
             elif form[i+1] == '\\neg':
-                form[i+1] = 'pc'
+                form[i+1] = 'pn'
                 print('form in connectives part neg')
                 print(form)
                 j= 0
@@ -328,12 +384,16 @@ def parse(form, startind, globform, flag):
                     while form[j+i+2] == '\\neg' and (j +i+2) < len(form) + 1:
                         if (j + i + 2) == len(form):
                             print("Invalid formula. Error with \\neg.")
+                            if errorMessage == "":
+                                errorMessage = 'Error with \\neg.'
                             return 0, 0
                         else:
-                            form[j+i+2] = 'pc'
+                            form[j+i+2] = 'pn'
                             j += 1
                 except:
                     print("Given formula is invalid. Error after \\neg.")
+                    if errorMessage == "":
+                        errorMessage = 'Error with \\neg.'
                     return 0, 0
 
                 #if there is a bracket after the last neg
@@ -341,6 +401,8 @@ def parse(form, startind, globform, flag):
                     newForm = collectForm(form, j+i+2)
                     if newForm == 0:
                         print('Given formula is invalid. Error in brackets.')
+                        if errorMessage == "":
+                            errorMessage = 'Invalid brackets'
                         return 0, 0
                     else:
                         result, globform = parse(newForm, startind+j+i+3, globform, flag)
@@ -379,6 +441,8 @@ def parse(form, startind, globform, flag):
                     testVal = form[i+1] #seeing if there is a value after the current one
                 except:
                     print("There is no value after connective " + form[i])
+                    if errorMessage == "":
+                        errorMessage = 'No value found after connective ' + form[i]
                     return 0, 0
                 result, globform = parse([form[i+1]], startind+i+1, globform, flag)
                 if result == 0:
@@ -393,56 +457,47 @@ def parse(form, startind, globform, flag):
     print(form)
     return form, globform
 
-with open('example.txt') as inpFile:
-    inpArray = inpFile.readlines()
-print(inpArray)
+with open('example.txt', "r") as inpFile:
+    for aLine in inpFile:
+        #Separate different parts of language definition
+        currentLineArray = aLine.split()
+        if currentLineArray[0] == 'variables:':
+            variables = currentLineArray[1:]
+            print(variables)
+        elif currentLineArray[0] == 'constants:':
+            constants = currentLineArray[1:]
+            print(constants)
+        elif currentLineArray[0] == 'predicates:':
+            predicates = currentLineArray[1:]
+            print(predicates)
+        elif currentLineArray[0] == 'equality:':
+            equality = currentLineArray[1:]
+            print(equality)
+        elif currentLineArray[0] == 'connectives:':
+            connectives = currentLineArray[1:]
+            print(connectives)
+        elif currentLineArray[0] == 'quantifiers:':
+            quantifiers = currentLineArray[1:]
+            print(quantifiers)
+        elif currentLineArray[0] == 'formula:':
+            formula = currentLineArray[1:]
+        else:
+            formula += currentLineArray
+    print(formula)
 
-#Separate different parts of language definition
-
-variables = inpArray[0]
-variables = variables.replace("\n", "")
-variables = variables.split(' ')
-variables.pop(0)
-print(variables)
-
-constants = inpArray[1]
-constants = constants.replace("\n", "")
-constants = constants.split(' ')
-constants.pop(0)
-print(constants)
-
-predicates = inpArray[2]
-predicates = predicates.replace("\n", "")
-predicates = predicates.split(' ')
-predicates.pop(0)
-print(predicates)
-
-equality = inpArray[3]
-equality = equality.replace("\n", "")
-equality = equality.split(' ')
-equality.pop(0)
-print(equality)
-
-connectives = inpArray[4]
-connectives = connectives.replace("\n", "")
-connectives = connectives.split(' ')
-connectives.pop(0)
-print(connectives)
-
-quantifiers = inpArray[5]
-quantifiers = quantifiers.replace("\n", "")
-quantifiers = quantifiers.split(' ')
-quantifiers.pop(0)
-print(quantifiers)
 
 #Printing out grammar of language defined
 
 terminal = variables + constants + predicates
 nonterminal = ['S', 'D', 'V', 'A', 'E', 'F', 'G']
-print('S -> (S) | SDS | NS | A | E | \epsilon')
+if "\\neg" in connectives:
+    print('S -> (S) | SDS | NS | A | E | \\neg S | \epsilon')
+else:
+    print('S -> (S) | SDS | NS | A | E | \epsilon')
 varPrint = ' | '.join(variables)
 print('V -> ' + varPrint)
 connPrint = ' | '.join(connectives)
+connPrint1 = connectives.remove("\\neg")
 print('D -> ' + connPrint)
 quantifiersProd = []
 for i in range(0, len(quantifiers)):
@@ -461,16 +516,16 @@ predProdPrint = ' | '.join(predProd)
 print('A -> ' + predProdPrint)
 if equality != []:
     print('E -> F' + equality[0] + 'F')
-constPrint = ' | '.join(constants)
+formattedConst = constants.copy()
+for i in range(len(formattedConst)):
+    formattedConst[i] = 'const' + formattedConst[i]
+constPrint = ' | '.join(formattedConst)
+print('C -> ' + constPrint)
 if (constants != []) and (variables != []):
     print('F -> V | C')
 
 #Breaking up formula into list
 
-formula = inpArray[6]
-formula = formula.split()
-formula.pop(0)
-print(formula)
 
 def remove_values_from_list(the_list, val):
    return [value for value in the_list if value != val]
@@ -480,6 +535,11 @@ finalform = formula
 flag = 0
 try:
     result, finalform = parse(formula, 0, finalform, flag)
+except:
+    print("Unspecified error")
+    result = 0
+
+if result != 0:
     finalCheckResult = result.copy()
     finalCheckResult = remove_values_from_list(finalCheckResult, ')')
     finalCheckResult = remove_values_from_list(finalCheckResult, '(')
@@ -489,21 +549,25 @@ try:
 
     for i in range(len(finalCheckResult) -1 ):
         if finalCheckResult[i] == 'vf':
-            if finalCheckResult[i+1] == 'vf' or finalCheckResult[i+1] == 'vfe' or finalCheckResult[i+1] == 'pq':
+            if finalCheckResult[i+1] == 'vf' or finalCheckResult[i+1] == 'vfe' or finalCheckResult[i+1] == 'pq' or finalCheckResult[i+1] == 'pn':
                 print("Given formula is incorrect. Two formulae are placed adjacent.")
+                errorMessage = "Two formulae are placed adjacent"
                 result = 0
                 break
         elif finalCheckResult[i] == 'vfe':
-            if finalCheckResult[i+1] == 'vf' or finalCheckResult[i+1] == 'pq':
+            if finalCheckResult[i+1] == 'vf' or finalCheckResult[i+1] == 'pq' or finalCheckResult[i+1] == 'pn':
                 print("Given formula is incorrect. Two formulae are placed adjacent.")
+                errorMessage = "Two formulae are placed adjacent"
                 result = 0
                 break
-except:
-    print("Unspecified error")
-    result = 0
+
 if result == 0:
-    print('result = 0. invalid formula')
+    print('result = 0. Invalid formula')
+    if errorMessage == "":
+        errorMessage = "Invalid formula"
+    recordLog("Failure", errorMessage)
 else:
+    recordLog("Success", "None")
     print('Result:')
     print(result)
     print('finalform/globform:')
